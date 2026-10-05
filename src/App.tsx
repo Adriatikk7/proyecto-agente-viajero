@@ -1,93 +1,167 @@
-import { useState } from 'react';
-import './App.css';
+import { useState } from "react";
+import { ProjectOverview } from "./components/ProjectOverview";
+import { GraphConfiguration } from "./components/GraphConfiguration";
+import { CostMatrix } from "./components/CostMatrix";
+import { GraphViewer } from "./components/GraphViewer";
+import { AlgorithmControls } from "./components/AlgorithmControls";
+
+import {
+  generateRandomCostMatrix,
+  isValidNodeCount,
+} from "./logic/graph";
+import { solveTSP, type TSPResult } from "./logic/tsp";
+
+import "./App.css";
 
 function App() {
-  // "Estados" en React: Variables que cuando cambian, actualizan la pantalla automáticamente
-  const [nodos, setNodos] = useState<number>(5);
-  const [matriz, setMatriz] = useState<number[][]>([]);
-  const [error, setError] = useState<string>('');
+  const [nodeCount, setNodeCount] = useState(5);
+  const [matrix, setMatrix] = useState<number[][]>([]);
+  const [error, setError] = useState("");
+  const [tspResult, setTspResult] =
+  useState<TSPResult | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
 
-  // Lógica matemática intacta: Generar matriz simétrica y diagonal en 0
-  const generarMatrizAleatoria = (n: number) => {
-    let nuevaMatriz: number[][] = [];
-    
-    for (let i = 0; i < n; i++) {
-      nuevaMatriz[i] = [];
-      for (let j = 0; j < n; j++) {
-        nuevaMatriz[i]![j] = 0;
-      }
-    }
+  const handleGenerateRandom = () => {
+  if (!isValidNodeCount(nodeCount)) {
+    setError("La cantidad de nodos debe estar entre 5 y 10.");
+    setMatrix([]);
+    setTspResult(null);
+    return;
+  }
 
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) { 
-        let pesoAleatorio = Math.floor(Math.random() * 20) + 1; 
-        nuevaMatriz[i]![j] = pesoAleatorio;
-        nuevaMatriz[j]![i] = pesoAleatorio;
-      }
-    }
-    return nuevaMatriz;
+  setError("");
+
+  const newMatrix = generateRandomCostMatrix(nodeCount);
+
+  setMatrix(newMatrix);
+  setTspResult(null);
+setCurrentStep(0);
+};
+
+  const handleSolveTSP = () => {
+  if (matrix.length === 0) {
+    setError("Primero debes generar un grafo.");
+    return;
+  }
+
+  const result = solveTSP(matrix);
+
+  setTspResult(result);
+  setCurrentStep(0);
+};
+
+  const handleGenerateManual = () => {
+    alert("La configuración manual será implementada próximamente.");
   };
 
-  // Evento al presionar el botón "Aleatorio"
-  const handleAleatorio = () => {
-    if (isNaN(nodos) || nodos < 5 || nodos > 10) {
-      setError("Error: El número de nodos debe estar estrictamente entre 5 y 10.");
-      setMatriz([]); // Borramos la tabla si hay error
-      return;
-    }
-    setError('');
-    const matrizGenerada = generarMatrizAleatoria(nodos);
-    setMatriz(matrizGenerada);
-  };
+  const currentEvaluation =
+  tspResult?.evaluations[currentStep] ?? null;
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial' }}>
-      <h2>Configuración del Grafo (Problema del Agente Viajero)</h2>
-      
-      <div style={{ marginBottom: '20px' }}>
-        <label>Cantidad de nodos (n entre 5 y 10): </label>
-        <input 
-          type="number" 
-          value={nodos} 
-          // Al escribir, actualizamos la variable "nodos"
-          onChange={(e) => setNodos(parseInt(e.target.value))} 
-        />
+  <div className="app">
+    <header className="app-header">
+      <div className="header-content">
+        <h1>Problema del Agente Viajero</h1>
+        <p>
+          Explora rutas, ciclos hamiltonianos y encuentra el recorrido óptimo.
+        </p>
       </div>
+    </header>
 
-      <div style={{ marginBottom: '20px' }}>
-        <p>¿Cómo deseas generar los costos (pesos) de las rutas?</p>
-        <button onClick={handleAleatorio} style={{ marginRight: '10px' }}>
-          Generar Aleatorio
-        </button>
-        <button onClick={() => alert("Interfaz manual en construcción...")}>
-          Generar Manual
-        </button>
+    <main className="container">
+  <ProjectOverview />
+
+  <GraphConfiguration
+    nodeCount={nodeCount}
+    error={error}
+    onNodeCountChange={setNodeCount}
+    onGenerateRandom={handleGenerateRandom}
+    onGenerateManual={handleGenerateManual}
+  />
+
+  {/* Matriz a todo el ancho */}
+  <CostMatrix matrix={matrix} />
+
+  {matrix.length > 0 && (
+    <div className="algorithm-workspace">
+      {/* Mitad izquierda */}
+      <GraphViewer
+        matrix={matrix}
+        activeRoute={currentEvaluation?.route ?? []}
+      />
+
+      {/* Mitad derecha */}
+      <div className="algorithm-sidebar">
+        <section className="card tsp-section">
+          <div>
+            <h2>Algoritmo de fuerza bruta</h2>
+
+            <p className="tsp-description">
+              Evalúa las rutas posibles para encontrar el ciclo
+              hamiltoniano de menor costo.
+            </p>
+          </div>
+
+          <button
+            className="button button-primary"
+            onClick={handleSolveTSP}
+          >
+            Resolver TSP
+          </button>
+
+          {tspResult && (
+            <div className="tsp-result">
+              <div>
+                <span>Rutas evaluadas</span>
+                <strong>
+                  {tspResult.evaluations.length}
+                </strong>
+              </div>
+
+              <div>
+                <span>Ciclos válidos</span>
+                <strong>
+                  {tspResult.validCycles.length}
+                </strong>
+              </div>
+
+              <div>
+                <span>Mejor costo</span>
+                <strong>
+                  {tspResult.bestCycle?.cost ??
+                    "Sin solución"}
+                </strong>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {tspResult && currentEvaluation && (
+          <AlgorithmControls
+            evaluation={currentEvaluation}
+            currentStep={currentStep}
+            totalSteps={tspResult.evaluations.length}
+            onPrevious={() =>
+              setCurrentStep((step) =>
+                Math.max(0, step - 1)
+              )
+            }
+            onNext={() =>
+              setCurrentStep((step) =>
+                Math.min(
+                  tspResult.evaluations.length - 1,
+                  step + 1
+                )
+              )
+            }
+          />
+        )}
       </div>
-
-      {/* Si hay un error, lo mostramos en rojo */}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {/* Si la matriz tiene datos, la dibujamos iterando sobre los arreglos */}
-      {matriz.length > 0 && (
-        <div>
-          <h3>Matriz de Adyacencia Generada ({nodos}x{nodos})</h3>
-          <table border={1} cellPadding={10} style={{ borderCollapse: 'collapse', textAlign: 'center' }}>
-            <tbody>
-              {matriz.map((fila, i) => (
-                <tr key={i}>
-                  {fila.map((celda, j) => (
-                    <td key={j} style={{ backgroundColor: celda === 0 ? '#eee' : 'white' }}>
-                      {celda === 0 ? <strong>0</strong> : celda}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
     </div>
-  );
+  )}
+</main>
+  </div>
+);
 }
 
 export default App;
