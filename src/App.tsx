@@ -3,6 +3,7 @@ import { ProjectOverview } from "./components/ProjectOverview";
 import { GraphConfiguration } from "./components/GraphConfiguration";
 import { CostMatrix } from "./components/CostMatrix";
 import { GraphViewer } from "./components/GraphViewer";
+import { AlgorithmControls } from "./components/AlgorithmControls";
 
 import {
   generateRandomCostMatrix,
@@ -18,6 +19,7 @@ function App() {
   const [error, setError] = useState("");
   const [tspResult, setTspResult] =
   useState<TSPResult | null>(null);
+  const [currentStep, setCurrentStep] = useState(0);
 
   const handleGenerateRandom = () => {
   if (!isValidNodeCount(nodeCount)) {
@@ -33,6 +35,7 @@ function App() {
 
   setMatrix(newMatrix);
   setTspResult(null);
+setCurrentStep(0);
 };
 
   const handleSolveTSP = () => {
@@ -44,11 +47,15 @@ function App() {
   const result = solveTSP(matrix);
 
   setTspResult(result);
+  setCurrentStep(0);
 };
 
   const handleGenerateManual = () => {
     alert("La configuración manual será implementada próximamente.");
   };
+
+  const currentEvaluation =
+  tspResult?.evaluations[currentStep] ?? null;
 
   return (
   <div className="app">
@@ -62,60 +69,97 @@ function App() {
     </header>
 
     <main className="container">
-      <ProjectOverview />
+  <ProjectOverview />
 
-      <GraphConfiguration
-        nodeCount={nodeCount}
-        error={error}
-        onNodeCountChange={setNodeCount}
-        onGenerateRandom={handleGenerateRandom}
-        onGenerateManual={handleGenerateManual}
+  <GraphConfiguration
+    nodeCount={nodeCount}
+    error={error}
+    onNodeCountChange={setNodeCount}
+    onGenerateRandom={handleGenerateRandom}
+    onGenerateManual={handleGenerateManual}
+  />
+
+  {/* Matriz a todo el ancho */}
+  <CostMatrix matrix={matrix} />
+
+  {matrix.length > 0 && (
+    <div className="algorithm-workspace">
+      {/* Mitad izquierda */}
+      <GraphViewer
+        matrix={matrix}
+        activeRoute={currentEvaluation?.route ?? []}
       />
 
-      <div className="workspace">
-        <CostMatrix matrix={matrix} />
-        <GraphViewer matrix={matrix} />
+      {/* Mitad derecha */}
+      <div className="algorithm-sidebar">
+        <section className="card tsp-section">
+          <div>
+            <h2>Algoritmo de fuerza bruta</h2>
+
+            <p className="tsp-description">
+              Evalúa las rutas posibles para encontrar el ciclo
+              hamiltoniano de menor costo.
+            </p>
+          </div>
+
+          <button
+            className="button button-primary"
+            onClick={handleSolveTSP}
+          >
+            Resolver TSP
+          </button>
+
+          {tspResult && (
+            <div className="tsp-result">
+              <div>
+                <span>Rutas evaluadas</span>
+                <strong>
+                  {tspResult.evaluations.length}
+                </strong>
+              </div>
+
+              <div>
+                <span>Ciclos válidos</span>
+                <strong>
+                  {tspResult.validCycles.length}
+                </strong>
+              </div>
+
+              <div>
+                <span>Mejor costo</span>
+                <strong>
+                  {tspResult.bestCycle?.cost ??
+                    "Sin solución"}
+                </strong>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {tspResult && currentEvaluation && (
+          <AlgorithmControls
+            evaluation={currentEvaluation}
+            currentStep={currentStep}
+            totalSteps={tspResult.evaluations.length}
+            onPrevious={() =>
+              setCurrentStep((step) =>
+                Math.max(0, step - 1)
+              )
+            }
+            onNext={() =>
+              setCurrentStep((step) =>
+                Math.min(
+                  tspResult.evaluations.length - 1,
+                  step + 1
+                )
+              )
+            }
+          />
+        )}
       </div>
-      {matrix.length > 0 && (
-  <section className="card tsp-section">
-    <div>
-      <h2>Algoritmo de fuerza bruta</h2>
-      <p className="tsp-description">
-        Evalúa las rutas posibles para encontrar el ciclo
-        hamiltoniano de menor costo.
-      </p>
     </div>
-
-    <button
-      className="button button-primary"
-      onClick={handleSolveTSP}
-    >
-      Resolver TSP
-    </button>
-
-    {tspResult && (
-      <div className="tsp-result">
-        <div>
-          <span>Rutas evaluadas</span>
-          <strong>{tspResult.evaluations.length}</strong>
-        </div>
-
-        <div>
-          <span>Ciclos válidos</span>
-          <strong>{tspResult.validCycles.length}</strong>
-        </div>
-
-        <div>
-          <span>Mejor costo</span>
-          <strong>
-            {tspResult.bestCycle?.cost ?? "Sin solución"}
-          </strong>
-        </div>
-      </div>
-    )}
-  </section>
-)}
-    </main>
+  )}
+</main>
   </div>
 );
 }
