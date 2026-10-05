@@ -171,3 +171,13 @@ export function solveTSP(
     bestCycle,
   };
 }
+
+export function nodeName(index: number): string {
+  return String.fromCharCode(65 + index);
+}
+
+export function formatRoute(route: number[]): string {
+  return route
+    .map((node) => nodeName(node))
+    .join(" → ");
+}
