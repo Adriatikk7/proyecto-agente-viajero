@@ -11,11 +11,38 @@ import "@xyflow/react/dist/style.css";
 
 import { matrixToFlowElements } from "../logic/graph";
 
-interface GraphViewerProps {
-  matrix: number[][];
+function isEdgeInRoute(
+  source: string,
+  target: string,
+  route: number[],
+): boolean {
+  for (let i = 0; i < route.length - 1; i++) {
+    const from = String(route[i]);
+    const to = String(route[i + 1]);
+
+    const matchesForward =
+      source === from && target === to;
+
+    const matchesBackward =
+      source === to && target === from;
+
+    if (matchesForward || matchesBackward) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
-export function GraphViewer({ matrix }: GraphViewerProps) {
+interface GraphViewerProps {
+  matrix: number[][];
+  activeRoute?: number[];
+}
+
+export function GraphViewer({
+  matrix,
+  activeRoute = [],
+}: GraphViewerProps) {
   const initialElements = matrixToFlowElements(matrix);
 
   const [nodes, setNodes, onNodesChange] =
@@ -23,6 +50,41 @@ export function GraphViewer({ matrix }: GraphViewerProps) {
 
   const [edges, setEdges, onEdgesChange] =
     useEdgesState(initialElements.edges);
+
+  const displayedEdges = edges.map((edge) => {
+    const active = isEdgeInRoute(
+      edge.source,
+      edge.target,
+      activeRoute,
+    );
+
+    return {
+      ...edge,
+
+      style: {
+        ...edge.style,
+
+        stroke: active
+          ? "#c58b32"
+          : "#c7b3a3",
+
+        strokeWidth: active ? 4 : 1.5,
+
+        opacity:
+          activeRoute.length > 0 && !active
+            ? 0.35
+            : 1,
+      },
+
+      labelStyle: {
+        fill: active
+          ? "#8b5b18"
+          : "#79695d",
+
+        fontWeight: active ? 800 : 600,
+      },
+    };
+  });
 
   useEffect(() => {
     const elements = matrixToFlowElements(matrix);
@@ -56,7 +118,7 @@ export function GraphViewer({ matrix }: GraphViewerProps) {
         <div className="graph-container">
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={displayedEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             fitView
